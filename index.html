@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>영업 브리핑</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="영업 브리핑">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="robots" content="noindex">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+  :root { --bg:#f6f4f4; --card:#fff; --ink:#1d1b1c; --muted:#6b6567; --line:#e6e0e1; --accent:#c8323f; --accent-ink:#fff; --ok:#1f7a4d; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#141213; --card:#1f1c1d; --ink:#f2eeee; --muted:#a59ea0; --line:#332e30; --accent:#e0525e; --accent-ink:#fff; --ok:#4cc38a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 -apple-system, "Apple SD Gothic Neo", system-ui, sans-serif;
+         padding: max(20px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); }
+  main { max-width: 480px; margin: 0 auto; display: grid; gap: 14px; }
+  h1 { font-size: 22px; margin: 4px 0 0; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
+  .btn { display:block; width:100%; text-align:center; border:0; border-radius:12px; padding:14px 16px; font:600 17px/1.2 inherit;
+         background: var(--accent); color: var(--accent-ink); text-decoration:none; cursor:pointer; }
+  .btn.ghost { background: transparent; color: var(--ink); border:1px solid var(--line); font-weight:500; font-size:15px; }
+  .status { display:flex; align-items:center; gap:8px; font-weight:600; }
+  .dot { width:10px; height:10px; border-radius:50%; background: var(--muted); flex:none; }
+  .dot.on { background: var(--ok); }
+  ol { margin: 8px 0 0; padding-left: 20px; }
+  li { margin: 4px 0; }
+  .list { display:grid; gap:10px; margin-top:8px; }
+  .item { border-top:1px solid var(--line); padding-top:10px; }
+  .item:first-child { border-top:0; padding-top:0; }
+  .item b { display:block; }
+  .item small { color: var(--muted); }
+  textarea { width:100%; min-height:110px; font: 12px/1.4 ui-monospace, Menlo, monospace; border:1px solid var(--line); border-radius:10px;
+             padding:8px; background: var(--bg); color: var(--ink); }
+  .hidden { display:none !important; }
+  .muted { color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <div>
+    <h1>영업 브리핑</h1>
+    <p class="sub">새 발주가 들어오면 이 아이콘에 숫자가 뜹니다.</p>
+  </div>
+
+  <a class="btn" id="open" href="https://claude.ai/artifact/U6F5EFLgQmqSUsmSdK8xFE">영업 브리핑 열기</a>
+
+  <!-- Safari 에서 처음 열었을 때 -->
+  <section class="card hidden" id="install">
+    <b>먼저 홈 화면에 추가해 주세요</b>
+    <ol>
+      <li>아래쪽 <b>공유</b> 버튼(네모에 화살표)을 누릅니다.</li>
+      <li><b>홈 화면에 추가</b>를 누르고 <b>추가</b>를 누릅니다.</li>
+      <li>홈 화면에 생긴 <b>영업 브리핑</b> 아이콘으로 다시 엽니다.</li>
+    </ol>
+    <p class="muted">아이폰은 홈 화면에 추가한 앱만 알림과 아이콘 숫자를 쓸 수 있습니다.</p>
+  </section>
+
+  <!-- 알림 상태 -->
+  <section class="card hidden" id="notif">
+    <div class="status"><span class="dot" id="dot"></span><span id="stateText">알림 꺼짐</span></div>
+    <p class="muted" id="stateHelp"></p>
+    <button class="btn" id="enable">알림 켜기</button>
+  </section>
+
+  <!-- 구독 정보 (처음 한 번 GitHub 에 등록) -->
+  <section class="card hidden" id="subBox">
+    <b>연결 코드</b>
+    <p class="muted">처음 한 번만 필요합니다. 복사해서 GitHub 저장소 설정의 비밀 값 <b>PUSH_SUB</b>에 붙여 넣으세요.</p>
+    <textarea id="subText" readonly></textarea>
+    <div style="display:grid; gap:8px; margin-top:8px">
+      <button class="btn" id="copy">연결 코드 복사</button>
+      <button class="btn ghost" id="subDone">등록했어요 · 숨기기</button>
+    </div>
+  </section>
+
+  <section class="card hidden" id="recent">
+    <b>최근 알림</b>
+    <div class="list" id="items"></div>
+  </section>
+
+  <button class="btn ghost hidden" id="showSub">연결 코드 다시 보기</button>
+</main>
+
+<script>
+const VAPID_PUBLIC_KEY = 'BEFarMlJmHhb_MH2oNAv2XNuuU5o3TPwefosNRZ6ARgSv7JvoTMQEbKezst5MZGM-9QZVdbiiy92mTIzgfQt78Y';
+const $ = (id) => document.getElementById(id);
+const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+const STATE_URL = new URL('state.json', location.href).href;
+
+function lsGet(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (_) {} }
+
+function b64uToBytes(s) {
+  const pad = '='.repeat((4 - s.length % 4) % 4);
+  const b = atob((s + pad).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from(b, (c) => c.charCodeAt(0));
+}
+
+async function readState() {
+  try {
+    const c = await caches.open('badge');
+    const r = await c.match(STATE_URL);
+    return r ? await r.json() : { n: 0, items: [] };
+  } catch (_) { return { n: 0, items: [] }; }
+}
+async function clearBadge() {
+  const s = await readState();
+  s.n = 0;
+  try {
+    const c = await caches.open('badge');
+    await c.put(STATE_URL, new Response(JSON.stringify(s), { headers: { 'content-type': 'application/json' } }));
+  } catch (_) {}
+  try { if (navigator.clearAppBadge) await navigator.clearAppBadge(); } catch (_) {}
+  return s;
+}
+
+function fmt(t) {
+  const d = new Date(t);
+  return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+function renderItems(s) {
+  const items = (s.items || []).slice(0, 10);
+  $('recent').classList.toggle('hidden', !items.length);
+  $('items').replaceChildren(...items.map((it) => {
+    const el = document.createElement('div'); el.className = 'item';
+    const b = document.createElement('b'); b.textContent = it.title || '새 발주';
+    const p = document.createElement('div'); p.textContent = it.body || '';
+    const sm = document.createElement('small'); sm.textContent = fmt(it.t);
+    el.append(b, p, sm); return el;
+  }));
+}
+
+function showSub(sub, force) {
+  $('subText').value = JSON.stringify(sub);
+  const done = lsGet('subDone') === $('subText').value;
+  $('subBox').classList.toggle('hidden', done && !force);
+  $('showSub').classList.toggle('hidden', !done || force);
+}
+
+async function ensureSubscription(reg) {
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) {
+    sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uToBytes(VAPID_PUBLIC_KEY) });
+  }
+  return sub;
+}
+
+function paintState(perm) {
+  const on = perm === 'granted';
+  $('dot').classList.toggle('on', on);
+  $('stateText').textContent = on ? '알림 켜짐' : (perm === 'denied' ? '알림이 차단됨' : '알림 꺼짐');
+  $('stateHelp').textContent = on ? '새 발주가 들어오면 배너와 아이콘 숫자로 알려 드립니다. 앱을 열면 숫자가 지워집니다.'
+    : perm === 'denied' ? '아이폰 설정 > 알림 > 영업 브리핑에서 알림을 허용해 주세요.'
+    : '아래 버튼을 눌러 알림을 허용해 주세요.';
+  $('enable').classList.toggle('hidden', on || perm === 'denied');
+}
+
+async function main() {
+  if (!standalone) { $('install').classList.remove('hidden'); }
+  if (!('serviceWorker' in navigator)) return;
+  const reg = await navigator.serviceWorker.register('sw.js');
+  await navigator.serviceWorker.ready;
+  const s = await clearBadge();
+  renderItems(s);
+  if (!standalone || !('PushManager' in window) || !('Notification' in window)) return;
+
+  $('notif').classList.remove('hidden');
+  paintState(Notification.permission);
+  if (Notification.permission === 'granted') {
+    try { showSub(await ensureSubscription(reg)); } catch (e) { $('stateHelp').textContent = '연결 실패: ' + e.message; }
+  }
+  $('enable').onclick = async () => {
+    const p = await Notification.requestPermission();
+    paintState(p);
+    if (p === 'granted') {
+      try { showSub(await ensureSubscription(reg), true); } catch (e) { $('stateHelp').textContent = '연결 실패: ' + e.message; }
+    }
+  };
+}
+
+$('copy').onclick = async () => {
+  try { await navigator.clipboard.writeText($('subText').value); $('copy').textContent = '복사했습니다'; }
+  catch (_) { $('subText').select(); document.execCommand('copy'); $('copy').textContent = '복사했습니다'; }
+  setTimeout(() => { $('copy').textContent = '연결 코드 복사'; }, 2000);
+};
+$('subDone').onclick = () => { lsSet('subDone', $('subText').value); $('subBox').classList.add('hidden'); $('showSub').classList.remove('hidden'); };
+$('showSub').onclick = () => { $('subBox').classList.remove('hidden'); $('showSub').classList.add('hidden'); };
+document.addEventListener('visibilitychange', async () => { if (!document.hidden) renderItems(await clearBadge()); });
+
+main();
+</script>
+</body>
+</html>
