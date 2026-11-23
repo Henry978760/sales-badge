@@ -50,6 +50,13 @@
 
   <a class="btn" id="open" href="https://claude.ai/artifact/U6F5EFLgQmqSUsmSdK8xFE">영업 브리핑 열기</a>
 
+  <!-- 설정이 끝난 뒤에는 앱을 열면 바로 브리핑으로 넘어간다 -->
+  <section class="card hidden" id="auto">
+    <b id="autoText">브리핑으로 이동하는 중…</b>
+    <p class="muted">연결 코드나 알림 설정을 보려면 아래를 누르세요.</p>
+    <button class="btn ghost" id="stay">여기 머물기</button>
+  </section>
+
   <!-- Safari 에서 처음 열었을 때 -->
   <section class="card hidden" id="install">
     <b>먼저 홈 화면에 추가해 주세요</b>
@@ -175,6 +182,8 @@ async function main() {
   if (Notification.permission === 'granted') {
     try { showSub(await ensureSubscription(reg)); } catch (e) { $('stateHelp').textContent = '연결 실패: ' + e.message; }
   }
+  // 알림이 켜져 있고 연결 코드 등록까지 끝났으면 바로 브리핑을 연다
+  if (Notification.permission === 'granted' && lsGet('subDone') && lsGet('subDone') === $('subText').value) autoOpen();
   $('enable').onclick = async () => {
     const p = await Notification.requestPermission();
     paintState(p);
@@ -183,6 +192,13 @@ async function main() {
     }
   };
 }
+
+let autoTimer = null;
+function autoOpen() {
+  $('auto').classList.remove('hidden');
+  autoTimer = setTimeout(() => { location.href = $('open').href; }, 1200);
+}
+$('stay').onclick = () => { clearTimeout(autoTimer); $('auto').classList.add('hidden'); };
 
 $('copy').onclick = async () => {
   try { await navigator.clipboard.writeText($('subText').value); $('copy').textContent = '복사했습니다'; }

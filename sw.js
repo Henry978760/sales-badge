@@ -38,6 +38,9 @@ self.addEventListener('push', (e) => {
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
   e.waitUntil((async () => {
+    // 배너를 눌러 들어오면 숫자를 지운다 (앱이 바로 브리핑으로 넘어가도 숫자가 남지 않게)
+    const s = await readState(); s.n = 0; await writeState(s);
+    try { if (self.navigator.clearAppBadge) await self.navigator.clearAppBadge(); } catch (_) {}
     const list = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const c of list) { if ('focus' in c) return c.focus(); }
     return self.clients.openWindow(self.registration.scope);
